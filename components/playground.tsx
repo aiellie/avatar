@@ -20,16 +20,25 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import {
+  DEFAULT_SIZE,
+  MAX_DIMENSION,
+  RATIO_PRESETS,
+  maxRounded as maxRoundedFor,
+  resolveDimensions,
+} from '@/utils/dimensions'
 
 const HOST = 'https://avatar.aiellie.dev'
-const SIZES = ['32', '64', '120', '240', '512']
 const EXAMPLES = ['ellie', 'sophia', 'aiellie', '42', 'next.js']
 const PREVIEW_MAX = 208
+const CUSTOM_RATIO = 'custom'
 
 export function Playground() {
   const [name, setName] = React.useState('ellie')
   const [format, setFormat] = React.useState<'png' | 'svg'>('svg')
-  const [size, setSize] = React.useState('120')
+  const [size, setSize] = React.useState(String(DEFAULT_SIZE))
+  const [ratioId, setRatioId] = React.useState('square')
+  const [customRatio, setCustomRatio] = React.useState({ w: '3', h: '2' })
   const [rounded, setRounded] = React.useState(0)
   const [text, setText] = React.useState('')
   const [copied, setCopied] = React.useState(false)
@@ -38,8 +47,23 @@ export function Playground() {
   )
 
   const effectiveName = name.trim() || 'ellie'
-  const sizeNum = Number(size)
-  const maxRounded = Math.floor(sizeNum / 2)
+  const isCustomRatio = ratioId === CUSTOM_RATIO
+  const preset = RATIO_PRESETS.find((r) => r.id === ratioId)
+
+  // `W:H` — the API also accepts the preset names, but spelling the numbers out
+  // keeps a copied URL readable on its own.
+  const ratioParam = isCustomRatio
+    ? `${customRatio.w.trim() || '1'}:${customRatio.h.trim() || '1'}`
+    : `${preset?.width ?? 1}:${preset?.height ?? 1}`
+  const isSquare = !isCustomRatio && ratioId === 'square'
+
+  // Resolve the shape exactly the way the API will, so the preview and the URL
+  // can never disagree.
+  const { width, height } = resolveDimensions({
+    size: size.trim() === '' ? DEFAULT_SIZE : size,
+    ratio: ratioParam,
+  })
+  const maxRounded = maxRoundedFor(width, height)
   const roundedClamped = Math.min(rounded, maxRounded)
 
   // The API treats everything after the first dot as the file extension
@@ -52,11 +76,17 @@ export function Playground() {
       : 'png'
     : format
 
+  // `size` sets the longest edge, so it always reads back off the resolved box.
+  const sizeNum = Math.max(width, height)
+
   const params = new URLSearchParams()
-  if (sizeNum !== 120) params.set('size', size)
+  if (!isSquare) params.set('ratio', ratioParam)
+  if (sizeNum !== DEFAULT_SIZE) params.set('size', String(sizeNum))
   if (roundedClamped > 0) params.set('rounded', String(roundedClamped))
   if (effectiveFormat === 'svg' && text.trim()) params.set('text', text.trim())
-  const query = params.toString()
+  // `:` is legal in a query string, and `ratio=16:9` reads better than the
+  // percent-encoded form URLSearchParams produces.
+  const query = params.toString().replace(/%3A/g, ':')
   const path = `/${encodeURIComponent(effectiveName)}${
     !hasDot && format === 'svg' ? '.svg' : ''
   }${query ? `?${query}` : ''}`
@@ -64,7 +94,9 @@ export function Playground() {
 
   // Defer the preview so typing stays snappy while images load.
   const previewSrc = React.useDeferredValue(path)
-  const displaySize = Math.min(sizeNum, PREVIEW_MAX)
+  const previewScale = Math.min(1, PREVIEW_MAX / sizeNum)
+  const displayWidth = Math.max(1, Math.round(width * previewScale))
+  const displayHeight = Math.max(1, Math.round(height * previewScale))
 
   async function copyUrl() {
     try {
@@ -127,25 +159,83 @@ export function Playground() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="size">Size</Label>
-              <Select
+              <Input
+                id="size"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_DIMENSION}
                 value={size}
+                onChange={(e) => setSize(e.target.value)}
+                onBlur={() => setSize(String(sizeNum))}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="ratio">Aspect ratio</Label>
+            <div className="flex gap-2">
+              <Select
+                value={ratioId}
                 onValueChange={(v) => {
-                  setSize(v)
-                  setRounded((r) => Math.min(r, Math.floor(Number(v) / 2)))
+                  if (v === CUSTOM_RATIO && preset) {
+                    // Seed the custom fields from the shape already on screen.
+                    setCustomRatio({
+                      w: String(preset.width),
+                      h: String(preset.height),
+                    })
+                  }
+                  setRatioId(v)
                 }}
               >
-                <SelectTrigger id="size" className="w-full">
+                <SelectTrigger id="ratio" className="min-w-0 flex-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SIZES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s} px
+                  {RATIO_PRESETS.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      <span className="flex w-full items-baseline gap-2">
+                        {r.label}
+                        <span className="text-muted-foreground text-xs">
+                          {r.hint}
+                        </span>
+                      </span>
                     </SelectItem>
                   ))}
+                  <SelectItem value={CUSTOM_RATIO}>Custom…</SelectItem>
                 </SelectContent>
               </Select>
+              {isCustomRatio ? (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Input
+                    aria-label="Custom ratio width"
+                    type="number"
+                    inputMode="decimal"
+                    min={1}
+                    className="w-16"
+                    value={customRatio.w}
+                    onChange={(e) =>
+                      setCustomRatio((r) => ({ ...r, w: e.target.value }))
+                    }
+                  />
+                  <span className="text-muted-foreground text-sm">:</span>
+                  <Input
+                    aria-label="Custom ratio height"
+                    type="number"
+                    inputMode="decimal"
+                    min={1}
+                    className="w-16"
+                    value={customRatio.h}
+                    onChange={(e) =>
+                      setCustomRatio((r) => ({ ...r, h: e.target.value }))
+                    }
+                  />
+                </div>
+              ) : null}
             </div>
+            <p className="text-muted-foreground text-xs">
+              Size sets the longest edge — {width} × {height} px here.
+            </p>
           </div>
 
           <div className="grid gap-2">
@@ -194,13 +284,14 @@ export function Playground() {
               key={previewSrc}
               src={previewSrc}
               alt={`Avatar for ${effectiveName}`}
-              width={displaySize}
-              height={displaySize}
-              style={{ width: displaySize, height: displaySize }}
+              width={displayWidth}
+              height={displayHeight}
+              style={{ width: displayWidth, height: displayHeight }}
             />
           </div>
           <p className="text-muted-foreground text-center text-xs tabular-nums">
-            {sizeNum} × {sizeNum} px{sizeNum > PREVIEW_MAX ? ' — scaled to fit' : ''}
+            {width} × {height} px
+            {sizeNum > PREVIEW_MAX ? ' — scaled to fit' : ''}
           </p>
           <div className="flex items-center gap-2">
             <code
