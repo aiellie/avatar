@@ -1,5 +1,10 @@
 import * as React from 'react'
-import { Check, Copy, ExternalLink } from 'lucide-react'
+import {
+  Copy01Icon,
+  LinkSquare02Icon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 
 import { IconDropdown } from '@/components/icon-dropdown'
 import { Button } from '@/components/ui/button'
@@ -182,6 +187,7 @@ export function Playground() {
               <Select
                 value={ratioId}
                 onValueChange={(v) => {
+                  if (v === null) return
                   if (v === CUSTOM_RATIO && preset) {
                     // Seed the custom fields from the shape already on screen.
                     setCustomRatio({
@@ -244,9 +250,9 @@ export function Playground() {
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label asChild>
-                <span>Roundness</span>
-              </Label>
+              <span className="text-sm leading-none font-medium select-none">
+                Roundness
+              </span>
               <span className="text-muted-foreground text-xs tabular-nums">
                 {roundedClamped === maxRounded && roundedClamped > 0
                   ? 'circle'
@@ -255,7 +261,7 @@ export function Playground() {
             </div>
             <Slider
               value={[roundedClamped]}
-              onValueChange={([v]) => setRounded(v)}
+              onValueChange={(v) => setRounded(Array.isArray(v) ? v[0] : v)}
               max={maxRounded}
               step={1}
               aria-label="Roundness"
@@ -327,17 +333,25 @@ export function Playground() {
               onClick={copyUrl}
               aria-label="Copy URL"
             >
-              {copied ? <Check /> : <Copy />}
+              <HugeiconsIcon
+                icon={copied ? Tick02Icon : Copy01Icon}
+                strokeWidth={2}
+              />
             </Button>
-            <Button variant="outline" size="icon" asChild>
-              <a
-                href={path}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Open image in a new tab"
-              >
-                <ExternalLink />
-              </a>
+            <Button
+              variant="outline"
+              size="icon"
+              nativeButton={false}
+              render={
+                <a
+                  href={path}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open image in a new tab"
+                />
+              }
+            >
+              <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} />
             </Button>
           </div>
         </div>

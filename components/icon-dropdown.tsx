@@ -1,7 +1,12 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronDownIcon, SearchIcon, XIcon } from 'lucide-react'
+import {
+  ArrowDown01Icon,
+  Cancel01Icon,
+  Search01Icon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 
 import { HugeIcon } from '@/components/hugeicon'
 import {
@@ -66,6 +71,16 @@ export function IconDropdown({
   React.useEffect(() => {
     if (value) ensureIconShards([value])
   }, [value, index])
+
+  // Keep the caret in the search box; the grid is driven from there. Base UI
+  // leaves focus on the trigger for pointer opens, and mounts the popup's
+  // children a tick after `open` flips — too late for `initialFocus` or an
+  // effect on `open`. This ref only fires when the box itself mounts, which
+  // is exactly once per open, so it can't steal focus back mid-session.
+  const setSearchRef = React.useCallback((node: HTMLInputElement | null) => {
+    searchRef.current = node
+    node?.focus()
+  }, [])
 
   const deferredQuery = React.useDeferredValue(query)
   const names = index?.names
@@ -247,7 +262,11 @@ export function IconDropdown({
               <span className="text-muted-foreground">No icon</span>
             )}
           </span>
-          <ChevronDownIcon className="size-4 shrink-0 opacity-50" />
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            strokeWidth={2}
+            className="size-4 shrink-0 opacity-50"
+          />
         </PopoverTrigger>
         {value ? (
           <button
@@ -257,7 +276,11 @@ export function IconDropdown({
             aria-label="Remove icon"
             className="border-input hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50 flex size-9 shrink-0 items-center justify-center rounded-md border bg-transparent shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <XIcon className="size-4" />
+            <HugeiconsIcon
+              icon={Cancel01Icon}
+              strokeWidth={2}
+              className="size-4"
+            />
           </button>
         ) : null}
       </div>
@@ -265,16 +288,15 @@ export function IconDropdown({
       <PopoverContent
         align="start"
         className="w-[min(22rem,calc(100vw-2rem))] p-0"
-        // Keep the caret in the search box; the grid is driven from there.
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          searchRef.current?.focus()
-        }}
       >
         <div className="flex items-center gap-2 border-b px-3">
-          <SearchIcon className="text-muted-foreground size-4 shrink-0" />
+          <HugeiconsIcon
+            icon={Search01Icon}
+            strokeWidth={2}
+            className="text-muted-foreground size-4 shrink-0"
+          />
           <input
-            ref={searchRef}
+            ref={setSearchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
