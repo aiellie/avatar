@@ -25,11 +25,19 @@ export default async function handler(req: NextRequest) {
   const fileType = type?.includes('svg') ? 'svg' : 'png'
 
   const gradient = await generateGradient(username || `${Math.random()}`)
-  // Unlike initials, an icon is plain geometry, so it survives rasterisation
-  // into PNG as happily as it does the SVG path.
   const icon = await loadIcon(req.nextUrl.origin, searchParams.get('icon'))
 
-  const avatar = (
+  // An icon wins when both are set.
+  const initials = !icon.data && text ? text : null
+  const fontSize = initials
+    ? Math.min((width * 0.9) / initials.length, height * 0.9)
+    : 0
+
+  // The gradient, the icon, and — for SVG only — the initials. Satori, which
+  // rasterises the PNG, refuses `<text>` nodes outright ("please convert them
+  // to <path>"), so the PNG path draws its initials as a layer over this
+  // instead, below.
+  const artwork = (
     <svg
       width={width}
       height={height}
@@ -54,9 +62,8 @@ export default async function handler(req: NextRequest) {
           ry={rounded}
         />
         {/* Called, not mounted — see the note on `iconGlyph`. */}
-        {icon.data ? (
-          iconGlyph({ data: icon.data, width, height })
-        ) : fileType === 'svg' && !!text ? (
+        {icon.data ? iconGlyph({ data: icon.data, width, height }) : null}
+        {fileType === 'svg' && initials ? (
           <text
             x="50%"
             y="50%"
@@ -65,9 +72,9 @@ export default async function handler(req: NextRequest) {
             textAnchor="middle"
             fill="#fff"
             fontFamily="sans-serif"
-            fontSize={Math.min((width * 0.9) / text.length, height * 0.9)}
+            fontSize={fontSize}
           >
-            {text}
+            {initials}
           </text>
         ) : null}
       </g>
@@ -75,7 +82,7 @@ export default async function handler(req: NextRequest) {
   )
 
   if (fileType === 'svg') {
-    const stream = await renderToReadableStream(avatar)
+    const stream = await renderToReadableStream(artwork)
     return new Response(stream, {
       headers: {
         'Content-Type': 'image/svg+xml',
@@ -91,8 +98,36 @@ export default async function handler(req: NextRequest) {
     })
   }
 
-  return new ImageResponse(avatar, {
-    width,
-    height,
-  })
+  // Satori lays out text as CSS, not as SVG, so the initials go in a flex box
+  // stacked over the artwork rather than in a `<text>` node inside it. The font
+  // is whatever `ImageResponse` has embedded, so PNG initials are set in a
+  // different face than the browser picks for the SVG's `sans-serif` — the same
+  // letters, not the same shapes.
+  return new ImageResponse(
+    initials ? (
+      <div style={{ display: 'flex', position: 'relative', width, height }}>
+        {artwork}
+        <div
+          style={{
+            display: 'flex',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width,
+            height,
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize,
+            lineHeight: 1,
+          }}
+        >
+          {initials}
+        </div>
+      </div>
+    ) : (
+      artwork
+    ),
+    { width, height }
+  )
 }

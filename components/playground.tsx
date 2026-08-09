@@ -85,11 +85,9 @@ export function Playground() {
   if (!isSquare) params.set('ratio', ratioParam)
   if (sizeNum !== DEFAULT_SIZE) params.set('size', String(sizeNum))
   if (roundedClamped > 0) params.set('rounded', String(roundedClamped))
-  // An icon is geometry rather than type, so unlike initials it survives the
-  // PNG rasteriser — and it wins when both are set.
+  // An icon wins when both are set.
   if (icon) params.set('icon', icon)
-  else if (effectiveFormat === 'svg' && text.trim())
-    params.set('text', text.trim())
+  else if (text.trim()) params.set('text', text.trim())
   // `:` is legal in a query string, and `ratio=16:9` reads better than the
   // percent-encoded form URLSearchParams produces.
   const query = params.toString().replace(/%3A/g, ':')
@@ -277,8 +275,7 @@ export function Playground() {
               >
                 HugeIcons
               </a>
-              , drawn over the gradient — and unlike initials, it works in PNG
-              too.
+              , drawn over the gradient — and it wins when initials are set too.
             </p>
           </div>
 
@@ -290,16 +287,14 @@ export function Playground() {
               onChange={(e) => setText(e.target.value)}
               placeholder="EA"
               maxLength={4}
-              disabled={effectiveFormat !== 'svg' || !!icon}
+              disabled={!!icon}
               autoComplete="off"
               spellCheck={false}
             />
             <p className="text-muted-foreground text-xs">
               {icon
                 ? 'An icon is already set — clear it to use initials instead.'
-                : effectiveFormat === 'svg'
-                  ? 'Optional — rendered on top of the gradient.'
-                  : 'Initials are only supported by the SVG format.'}
+                : 'Optional — rendered on top of the gradient. PNG sets them in the renderer’s own font, so they won’t match the SVG letter for letter.'}
             </p>
           </div>
         </div>

@@ -95,13 +95,17 @@ https://avatar.aiellie.dev/ellie.svg
 
 ### Add Initials
 
-Add the `text` parameter (requires SVG):
+Add the `text` parameter:
 
 ```
 https://avatar.aiellie.dev/ellie.svg?text=EA
 ```
 
 ![Avatar for ellie](https://avatar.aiellie.dev/ellie.svg?text=EA)
+
+Both formats draw them, but not in the same typeface: the SVG asks for
+`sans-serif` and lets the viewer resolve it, while the PNG can only use the font
+embedded in the rasteriser. Expect the same letters in a different face.
 
 ### Add an Icon
 
@@ -113,7 +117,7 @@ https://avatar.aiellie.dev/ellie?icon=rocket-01
 
 ![Avatar for ellie](https://avatar.aiellie.dev/ellie?icon=rocket-01)
 
-Icons are geometry rather than type, so — unlike `text` — they work in PNG as well as SVG, at any size or ratio:
+Icons work in either format, at any size or ratio:
 
 ```
 https://avatar.aiellie.dev/ellie?icon=github&ratio=banner&size=600&rounded=24
@@ -142,4 +146,4 @@ The app rewrites every path to the avatar API (`/:name` → `/api/avatar/:name`)
 
 Both consumers page it in rather than loading it whole. The avatar route fetches the one shard holding the requested icon and keeps it in module scope; the picker fetches the index up front and pulls shards as rows scroll into view. Shard URLs carry the package version and are served `immutable`, so bumping the dependency invalidates them on its own. Run `pnpm generate:icons` to rebuild by hand.
 
-One trap worth knowing if you touch the rendering: Satori, which rasterises the PNG output, walks the element tree without invoking function components or fragments. Hand it either and it returns a blank image with no error — which is why `iconGlyph` is a plain function the route *calls* rather than a component it mounts.
+Two traps worth knowing if you touch the rendering, both from Satori, which rasterises the PNG output. It walks the element tree without invoking function components or fragments — hand it either and it returns a blank image with no error, which is why `iconGlyph` is a plain function the route *calls* rather than a component it mounts. And it rejects SVG `<text>` nodes outright ("please convert them to `<path>`"), so the two formats draw initials differently: the SVG puts a `<text>` node inside the artwork, while the PNG stacks a CSS-laid-out flex box over it.
