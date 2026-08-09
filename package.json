@@ -4,13 +4,15 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
+    "dev": "node scripts/generate-hugeicons.mjs && next dev --turbopack",
+    "build": "node scripts/generate-hugeicons.mjs && next build",
+    "generate:icons": "node scripts/generate-hugeicons.mjs --force",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.15",
+    "@radix-ui/react-popover": "^1.1.23",
     "@radix-ui/react-select": "^2.3.7",
     "@radix-ui/react-slider": "^1.4.7",
     "@radix-ui/react-slot": "^1.3.3",
@@ -28,6 +30,7 @@
     "typescript": "5.7.2"
   },
   "devDependencies": {
+    "@hugeicons/core-free-icons": "^4.2.3",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/tinycolor2": "^1.4.6",
     "tailwindcss": "^4.3.3",

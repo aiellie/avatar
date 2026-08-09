@@ -1,8 +1,10 @@
 import { ImageResponse } from 'next/og'
 import type { NextRequest } from 'next/server'
 import { renderToReadableStream } from 'react-dom/server'
+import { iconGlyph } from '../../../components/hugeicon'
 import { parseRounded, resolveDimensions } from '../../../utils/dimensions'
 import { generateGradient } from '../../../utils/gradient'
+import { loadIcon } from '../../../utils/hugeicons-server'
 
 export const runtime = 'edge'
 
@@ -23,6 +25,9 @@ export default async function handler(req: NextRequest) {
   const fileType = type?.includes('svg') ? 'svg' : 'png'
 
   const gradient = await generateGradient(username || `${Math.random()}`)
+  // Unlike initials, an icon is plain geometry, so it survives rasterisation
+  // into PNG as happily as it does the SVG path.
+  const icon = await loadIcon(req.nextUrl.origin, searchParams.get('icon'))
 
   const avatar = (
     <svg
@@ -48,7 +53,10 @@ export default async function handler(req: NextRequest) {
           rx={rounded}
           ry={rounded}
         />
-        {fileType === 'svg' && !!text ? (
+        {/* Called, not mounted — see the note on `iconGlyph`. */}
+        {icon.data ? (
+          iconGlyph({ data: icon.data, width, height })
+        ) : fileType === 'svg' && !!text ? (
           <text
             x="50%"
             y="50%"
@@ -71,7 +79,14 @@ export default async function handler(req: NextRequest) {
     return new Response(stream, {
       headers: {
         'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=604800, immutable',
+        // Normally the body is a pure function of the URL and can be pinned for
+        // a week. When the icon manifest could not be reached the body is only
+        // provisional, so it gets a short window instead — otherwise one
+        // blip during a cold start would freeze an icon-less avatar in every
+        // cache downstream.
+        'Cache-Control': icon.degraded
+          ? 'public, max-age=60, stale-while-revalidate=60'
+          : 'public, max-age=604800, immutable',
       },
     })
   }

@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Check, Copy, ExternalLink } from 'lucide-react'
 
+import { IconDropdown } from '@/components/icon-dropdown'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -40,6 +41,7 @@ export function Playground() {
   const [ratioId, setRatioId] = React.useState('square')
   const [customRatio, setCustomRatio] = React.useState({ w: '3', h: '2' })
   const [rounded, setRounded] = React.useState(0)
+  const [icon, setIcon] = React.useState<string | null>(null)
   const [text, setText] = React.useState('')
   const [copied, setCopied] = React.useState(false)
   const copyResetRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -83,7 +85,11 @@ export function Playground() {
   if (!isSquare) params.set('ratio', ratioParam)
   if (sizeNum !== DEFAULT_SIZE) params.set('size', String(sizeNum))
   if (roundedClamped > 0) params.set('rounded', String(roundedClamped))
-  if (effectiveFormat === 'svg' && text.trim()) params.set('text', text.trim())
+  // An icon is geometry rather than type, so unlike initials it survives the
+  // PNG rasteriser — and it wins when both are set.
+  if (icon) params.set('icon', icon)
+  else if (effectiveFormat === 'svg' && text.trim())
+    params.set('text', text.trim())
   // `:` is legal in a query string, and `ratio=16:9` reads better than the
   // percent-encoded form URLSearchParams produces.
   const query = params.toString().replace(/%3A/g, ':')
@@ -259,6 +265,24 @@ export function Playground() {
           </div>
 
           <div className="grid gap-2">
+            <Label htmlFor="icon">Icon</Label>
+            <IconDropdown id="icon" value={icon} onValueChange={setIcon} />
+            <p className="text-muted-foreground text-xs">
+              Any of the 6,000+ free{' '}
+              <a
+                className="hover:text-foreground underline underline-offset-4 transition-colors"
+                href="https://hugeicons.com"
+                target="_blank"
+                rel="noreferrer"
+              >
+                HugeIcons
+              </a>
+              , drawn over the gradient — and unlike initials, it works in PNG
+              too.
+            </p>
+          </div>
+
+          <div className="grid gap-2">
             <Label htmlFor="text">Initials</Label>
             <Input
               id="text"
@@ -266,14 +290,16 @@ export function Playground() {
               onChange={(e) => setText(e.target.value)}
               placeholder="EA"
               maxLength={4}
-              disabled={effectiveFormat !== 'svg'}
+              disabled={effectiveFormat !== 'svg' || !!icon}
               autoComplete="off"
               spellCheck={false}
             />
             <p className="text-muted-foreground text-xs">
-              {effectiveFormat === 'svg'
-                ? 'Optional — rendered on top of the gradient.'
-                : 'Initials are only supported by the SVG format.'}
+              {icon
+                ? 'An icon is already set — clear it to use initials instead.'
+                : effectiveFormat === 'svg'
+                  ? 'Optional — rendered on top of the gradient.'
+                  : 'Initials are only supported by the SVG format.'}
             </p>
           </div>
         </div>

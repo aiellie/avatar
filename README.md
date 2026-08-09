@@ -103,9 +103,29 @@ https://avatar.aiellie.dev/ellie.svg?text=EA
 
 ![Avatar for ellie](https://avatar.aiellie.dev/ellie.svg?text=EA)
 
+### Add an Icon
+
+Instead of initials, drop any of the 6,122 free [HugeIcons](https://hugeicons.com) on top of the gradient with `icon`:
+
+```
+https://avatar.aiellie.dev/ellie?icon=rocket-01
+```
+
+![Avatar for ellie](https://avatar.aiellie.dev/ellie?icon=rocket-01)
+
+Icons are geometry rather than type, so — unlike `text` — they work in PNG as well as SVG, at any size or ratio:
+
+```
+https://avatar.aiellie.dev/ellie?icon=github&ratio=banner&size=600&rounded=24
+```
+
+![Avatar for ellie](https://avatar.aiellie.dev/ellie?icon=github&ratio=banner&size=600&rounded=24)
+
+Names are the kebab-case form of the HugeIcons name — `home-01`, `user-circle`, `rocket-01`. The spellings you might paste in from their site or the React package (`Home01Icon`, `home 01`, `home_01`) are all folded to the same icon. An unknown name is ignored rather than erroring, and `icon` wins if `text` is also set. Browse the full set in the playground.
+
 ## Playground
 
-The home page at [avatar.aiellie.dev](https://avatar.aiellie.dev) is a small playground built with [shadcn/ui](https://ui.shadcn.com): type a name, pick the format, size and aspect ratio (including a custom `W:H`), drag the roundness slider, add initials, and copy the generated URL.
+The home page at [avatar.aiellie.dev](https://avatar.aiellie.dev) is a small playground built with [shadcn/ui](https://ui.shadcn.com): type a name, pick the format, size and aspect ratio (including a custom `W:H`), drag the roundness slider, search the icon set, add initials, and copy the generated URL.
 
 ## Development
 
@@ -115,3 +135,11 @@ pnpm dev
 ```
 
 The app rewrites every path to the avatar API (`/:name` → `/api/avatar/:name`), so the home page is served at `/` and everything else returns an image.
+
+### Icons
+
+`@hugeicons/core-free-icons` is a dev dependency of ~83MB that exports each icon several times over — far too much to bundle into an edge function or ship to a browser. `pnpm dev` and `pnpm build` therefore run `scripts/generate-hugeicons.mjs` first, which distils it into `public/hugeicons`: an index of names plus 32 shards of geometry, together about 5MB of static JSON that is generated, git-ignored, and served from the CDN.
+
+Both consumers page it in rather than loading it whole. The avatar route fetches the one shard holding the requested icon and keeps it in module scope; the picker fetches the index up front and pulls shards as rows scroll into view. Shard URLs carry the package version and are served `immutable`, so bumping the dependency invalidates them on its own. Run `pnpm generate:icons` to rebuild by hand.
+
+One trap worth knowing if you touch the rendering: Satori, which rasterises the PNG output, walks the element tree without invoking function components or fragments. Hand it either and it returns a blank image with no error — which is why `iconGlyph` is a plain function the route *calls* rather than a component it mounts.
