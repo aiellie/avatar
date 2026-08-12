@@ -38,6 +38,7 @@ const HOST = 'https://avatar.aiellie.dev'
 const EXAMPLES = ['ellie', 'sophia', 'aiellie', '42', 'next.js']
 const PREVIEW_MAX = 208
 const CUSTOM_RATIO = 'custom'
+const HEADER_AVATARS = ['ellie', 'sophia', 'party', 'edge']
 
 export function Playground() {
   const [name, setName] = React.useState('ellie')
@@ -119,12 +120,23 @@ export function Playground() {
   }
 
   return (
-    <Card className="w-full max-w-4xl">
+    <Card className="w-full max-w-4xl rounded-none border-none!">
       <CardHeader>
-        <CardTitle>Playground</CardTitle>
+        <CardTitle className="flex items-center gap-2">Avatars
+          <div className="flex -space-x-2">
+            {HEADER_AVATARS.map((n) => (
+              <img
+                key={n}
+                src={`/${n}?size=28`}
+                alt={`Avatar for ${n}`}
+                width={28}
+                height={28}
+                className="ring-background rounded-full ring-2"
+              />
+            ))}
+          </div></CardTitle>
         <CardDescription>
-          Tweak the parameters and grab the URL — no account, no upload, just a
-          name.
+        Generate beautiful avatars for your application.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-8 md:grid-cols-[1fr_20rem]">
@@ -356,7 +368,7 @@ export function Playground() {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="border-t flex-col items-start gap-3 [.border-t]:pt-6">
+      {/* <CardFooter className="border-t flex-col items-start gap-3 [.border-t]:pt-6"> 
         <p className="text-muted-foreground text-xs">Try one of these:</p>
         <div className="flex flex-wrap gap-4">
           {EXAMPLES.map((n) => (
@@ -380,7 +392,7 @@ export function Playground() {
             </button>
           ))}
         </div>
-      </CardFooter>
+      </CardFooter> */}
     </Card>
   )
 }
