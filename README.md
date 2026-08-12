@@ -85,6 +85,31 @@ https://avatar.aiellie.dev/ellie?width=300&height=100
 
 Passing only one of them pairs with `ratio` to derive the other, so `?width=800&ratio=video` gives 800×450.
 
+### Style
+
+Avatars are drawn as a two-tone gradient by default. Pass `style=glass` for a
+frosted look instead — one flat hue from a 35-colour ramp, with two soft,
+heavily blurred shapes screened over it:
+
+```
+https://avatar.aiellie.dev/ellie?style=glass&rounded=24
+```
+
+![Avatar for ellie](https://avatar.aiellie.dev/ellie?style=glass&rounded=24)
+
+| `style`    | Look                                             |
+| ---------- | ------------------------------------------------ |
+| `gradient` | Two colours blended corner to corner. Default    |
+| `glass`    | Blurred shapes on a flat hue. Also `frosted`     |
+
+`glass` is a port of [DiceBear](https://www.dicebear.com)'s Glass style: the
+same 35-hue palette, the same eight glyphs (the letters of the word
+"gradient"), and the same seeded selection. It picks its colour on its own
+hash, so a name lands on unrelated hues in the two styles.
+
+Anything unrecognised falls back to `gradient`, and icons and initials draw over
+both.
+
 ### SVG
 
 Add the extension `.svg`:
@@ -109,7 +134,7 @@ embedded in the rasteriser. Expect the same letters in a different face.
 
 ### Add an Icon
 
-Instead of initials, drop any of the 6,122 free [HugeIcons](https://hugeicons.com) on top of the gradient with `icon`:
+Instead of initials, drop any of the 6,122 free [HugeIcons](https://hugeicons.com) on top of the artwork with `icon`:
 
 ```
 https://avatar.aiellie.dev/ellie?icon=rocket-01
@@ -129,7 +154,7 @@ Names are the kebab-case form of the HugeIcons name — `home-01`, `user-circle`
 
 ## Playground
 
-The home page at [avatar.aiellie.dev](https://avatar.aiellie.dev) is a small playground built with [shadcn/ui](https://ui.shadcn.com): type a name, pick the format, size and aspect ratio (including a custom `W:H`), drag the roundness slider, search the icon set, add initials, and copy the generated URL.
+The home page at [avatar.aiellie.dev](https://avatar.aiellie.dev) is a small playground built with [shadcn/ui](https://ui.shadcn.com): type a name, pick the style, format, size and aspect ratio (including a custom `W:H`), drag the roundness slider, search the icon set, add initials, and copy the generated URL.
 
 ## Development
 

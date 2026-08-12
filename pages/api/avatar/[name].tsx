@@ -3,10 +3,136 @@ import type { NextRequest } from 'next/server'
 import { renderToReadableStream } from 'react-dom/server'
 import { iconGlyph } from '../../../components/hugeicon'
 import { parseRounded, resolveDimensions } from '../../../utils/dimensions'
+import {
+  GLASS_BLUR,
+  GLASS_SHAPE_BOX,
+  GLASS_VIEWPORT,
+  type GlassArtwork,
+  type GlassShape,
+  generateGlass,
+} from '../../../utils/glass'
 import { generateGradient } from '../../../utils/gradient'
 import { loadIcon } from '../../../utils/hugeicons-server'
+import { parseStyle } from '../../../utils/styles'
 
 export const runtime = 'edge'
+
+type Box = { width: number; height: number; rounded: number }
+
+/**
+ * The two-tone blend: one linear gradient across the whole shape.
+ *
+ * Plain functions rather than components, and *called* rather than mounted —
+ * see the note on `iconGlyph` for why Satori leaves us no choice.
+ */
+function gradientBackground(
+  palette: { fromColor: string; toColor: string },
+  { width, height, rounded }: Box
+) {
+  return (
+    <g>
+      <defs>
+        <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={palette.fromColor} />
+          <stop offset="100%" stopColor={palette.toColor} />
+        </linearGradient>
+      </defs>
+      <rect
+        fill="url(#gradient)"
+        x="0"
+        y="0"
+        width={width}
+        height={height}
+        rx={rounded}
+        ry={rounded}
+      />
+    </g>
+  )
+}
+
+/**
+ * The glass style: one flat hue with two blurred glyphs screened over it.
+ *
+ * The shapes are drawn in a 150-unit box, placed in a 100-unit viewport, and
+ * scaled here to whatever the request asked for — so the blur, the offsets and
+ * the rotations all stay in the proportions DiceBear picked them in, at any
+ * size or ratio.
+ */
+function glassBackground(art: GlassArtwork, { width, height, rounded }: Box) {
+  // Cover rather than stretch: a banner gets a wider crop of the same artwork
+  // instead of smeared glyphs.
+  const scale = Math.max(width, height) / GLASS_VIEWPORT
+  const span = GLASS_VIEWPORT * scale
+
+  return (
+    <g>
+      <defs>
+        {/* DiceBear's own filter opens with an feFlood/feBlend pair left over
+            from a Figma export, which resolves to the source unchanged — this
+            is the blur it amounts to. The region is spelled out in user units
+            because the glyphs vary hugely in width, and a percentage box would
+            crop the blur off a narrow one like `i`. */}
+        <filter
+          id="glass-blur"
+          x={-57}
+          y={-57}
+          width={214}
+          height={214}
+          filterUnits="userSpaceOnUse"
+          colorInterpolationFilters="sRGB"
+        >
+          <feGaussianBlur stdDeviation={GLASS_BLUR} />
+        </filter>
+        <clipPath id="glass-clip">
+          <rect
+            x="0"
+            y="0"
+            width={width}
+            height={height}
+            rx={rounded}
+            ry={rounded}
+          />
+        </clipPath>
+      </defs>
+      {/* The glyphs are blurred well past the artboard, so the whole style is
+          clipped rather than each layer being shaped to fit. */}
+      <g clipPath="url(#glass-clip)">
+        <rect
+          fill={art.background}
+          x="0"
+          y="0"
+          width={width}
+          height={height}
+        />
+        <g
+          transform={`translate(${(width - span) / 2} ${(height - span) / 2}) scale(${scale})`}
+        >
+          {glassShape(art.back)}
+          {glassShape(art.front)}
+        </g>
+      </g>
+    </g>
+  )
+}
+
+/** One blurred glyph, screened over whatever is already under it. */
+function glassShape({ path, offsetX, offsetY, rotation }: GlassShape) {
+  // The shape box overhangs the viewport on every side; -25 centres it.
+  const inset = (GLASS_VIEWPORT - GLASS_SHAPE_BOX) / 2
+  const pivot = GLASS_SHAPE_BOX / 2
+
+  return (
+    <g style={{ mixBlendMode: 'screen' }} opacity="0.6" filter="url(#glass-blur)">
+      <g transform={`translate(${inset} ${inset})`}>
+        <path
+          d={path}
+          fill="#fff"
+          transform={`translate(${offsetX} ${offsetY}) rotate(${rotation} ${pivot} ${pivot})`}
+        />
+      </g>
+    </g>
+  )
+}
 
 export default async function handler(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
@@ -24,7 +150,13 @@ export default async function handler(req: NextRequest) {
   const [username, type] = name?.split('.') || []
   const fileType = type?.includes('svg') ? 'svg' : 'png'
 
-  const gradient = await generateGradient(username || `${Math.random()}`)
+  const seed = username || `${Math.random()}`
+  const style = parseStyle(searchParams.get('style'))
+  const box = { width, height, rounded }
+  const background =
+    style === 'glass'
+      ? glassBackground(generateGlass(seed), box)
+      : gradientBackground(await generateGradient(seed), box)
   const icon = await loadIcon(req.nextUrl.origin, searchParams.get('icon'))
 
   // An icon wins when both are set.
@@ -33,7 +165,7 @@ export default async function handler(req: NextRequest) {
     ? Math.min((width * 0.9) / initials.length, height * 0.9)
     : 0
 
-  // The gradient, the icon, and — for SVG only — the initials. Satori, which
+  // The background, the icon, and — for SVG only — the initials. Satori, which
   // rasterises the PNG, refuses `<text>` nodes outright ("please convert them
   // to <path>"), so the PNG path draws its initials as a layer over this
   // instead, below.
@@ -46,21 +178,7 @@ export default async function handler(req: NextRequest) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <g>
-        <defs>
-          <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={gradient.fromColor} />
-            <stop offset="100%" stopColor={gradient.toColor} />
-          </linearGradient>
-        </defs>
-        <rect
-          fill="url(#gradient)"
-          x="0"
-          y="0"
-          width={width}
-          height={height}
-          rx={rounded}
-          ry={rounded}
-        />
+        {background}
         {/* Called, not mounted — see the note on `iconGlyph`. */}
         {icon.data ? iconGlyph({ data: icon.data, width, height }) : null}
         {fileType === 'svg' && initials ? (

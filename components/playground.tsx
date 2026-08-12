@@ -7,6 +7,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 
 import { IconDropdown } from '@/components/icon-dropdown'
+import { StyleDropdown } from '@/components/style-dropdown'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -33,6 +34,7 @@ import {
   maxRounded as maxRoundedFor,
   resolveDimensions,
 } from '@/utils/dimensions'
+import { type AvatarStyle, DEFAULT_STYLE } from '@/utils/styles'
 
 const HOST = 'https://avatar.aiellie.dev'
 const EXAMPLES = ['ellie', 'sophia', 'aiellie', '42', 'next.js']
@@ -43,6 +45,7 @@ const HEADER_AVATARS = ['ellie', 'sophia', 'party', 'edge']
 export function Playground() {
   const [name, setName] = React.useState('ellie')
   const [format, setFormat] = React.useState<'png' | 'svg'>('svg')
+  const [style, setStyle] = React.useState<AvatarStyle>(DEFAULT_STYLE)
   const [size, setSize] = React.useState(String(DEFAULT_SIZE))
   const [ratioId, setRatioId] = React.useState('square')
   const [customRatio, setCustomRatio] = React.useState({ w: '3', h: '2' })
@@ -88,6 +91,7 @@ export function Playground() {
   const sizeNum = Math.max(width, height)
 
   const params = new URLSearchParams()
+  if (style !== DEFAULT_STYLE) params.set('style', style)
   if (!isSquare) params.set('ratio', ratioParam)
   if (sizeNum !== DEFAULT_SIZE) params.set('size', String(sizeNum))
   if (roundedClamped > 0) params.set('rounded', String(roundedClamped))
@@ -156,9 +160,19 @@ export function Playground() {
               <p className="text-muted-foreground text-xs">
                 Anything after the first dot acts as a file extension — it
                 decides the format ({effectiveFormat.toUpperCase()} here), and
-                only the part before it picks the gradient.
+                only the part before it picks the colours.
               </p>
             ) : null}
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="style">Style</Label>
+            <StyleDropdown
+              id="style"
+              value={style}
+              onValueChange={setStyle}
+              previewName={effectiveName}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -293,7 +307,7 @@ export function Playground() {
               >
                 HugeIcons
               </a>
-              , drawn over the gradient — and it wins when initials are set too.
+              , drawn over the artwork — and it wins when initials are set too.
             </p>
           </div>
 
@@ -312,7 +326,7 @@ export function Playground() {
             <p className="text-muted-foreground text-xs">
               {icon
                 ? 'An icon is already set — clear it to use initials instead.'
-                : 'Optional — rendered on top of the gradient. PNG sets them in the renderer’s own font, so they won’t match the SVG letter for letter.'}
+                : 'Optional — rendered on top of the artwork. PNG sets them in the renderer’s own font, so they won’t match the SVG letter for letter.'}
             </p>
           </div>
         </div>

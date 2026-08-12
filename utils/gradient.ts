@@ -9,7 +9,11 @@ async function hash(str: string): Promise<number> {
   return sum;
 }
 
-async function hue(str: string): Promise<number> {
+/**
+ * The seed every style hangs its palette off, so one name lands on the same
+ * corner of the colour wheel whichever style renders it.
+ */
+export async function hue(str: string): Promise<number> {
   const n = await hash(str);
   return n % 360;
 }
