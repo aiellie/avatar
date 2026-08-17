@@ -6,6 +6,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 
+import { Header } from '@/components/header'
 import { IconDropdown } from '@/components/icon-dropdown'
 import { StyleDropdown } from '@/components/style-dropdown'
 import { Button } from '@/components/ui/button'
@@ -15,10 +16,14 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable'
 import {
   Select,
   SelectContent,
@@ -27,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   DEFAULT_SIZE,
   MAX_DIMENSION,
@@ -40,7 +46,6 @@ const HOST = 'https://avatar.aiellie.dev'
 const EXAMPLES = ['ellie', 'sophia', 'aiellie', '42', 'next.js']
 const PREVIEW_MAX = 208
 const CUSTOM_RATIO = 'custom'
-const HEADER_AVATARS = ['ellie', 'sophia', 'party', 'edge']
 
 export function Playground() {
   const [name, setName] = React.useState('ellie')
@@ -56,6 +61,10 @@ export function Playground() {
   const copyResetRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
   )
+
+  // Panels only make sense side by side; below `md` the two columns stack and
+  // there is nothing left to drag.
+  const isMobile = useIsMobile()
 
   const effectiveName = name.trim() || 'ellie'
   const isCustomRatio = ratioId === CUSTOM_RATIO
@@ -101,10 +110,27 @@ export function Playground() {
   // `:` is legal in a query string, and `ratio=16:9` reads better than the
   // percent-encoded form URLSearchParams produces.
   const query = params.toString().replace(/%3A/g, ':')
-  const path = `/${encodeURIComponent(effectiveName)}${
-    !hasDot && format === 'svg' ? '.svg' : ''
-  }${query ? `?${query}` : ''}`
+
+  const pathFor = (fmt: 'png' | 'svg') =>
+    `/${encodeURIComponent(effectiveName)}${
+      !hasDot && fmt === 'svg' ? '.svg' : ''
+    }${query ? `?${query}` : ''}`
+
+  const path = pathFor(format)
   const url = `${HOST}${path}`
+
+  // The header's download button saves the format on screen first, and offers
+  // the other one below it. A dotted name has already spoken for its format, so
+  // the one it rules out is listed but disabled rather than quietly missing.
+  const fileStem = effectiveName.split('.')[0] || 'avatar'
+  const downloads = (
+    effectiveFormat === 'png' ? (['png', 'svg'] as const) : (['svg', 'png'] as const)
+  ).map((fmt) => ({
+    format: fmt,
+    path: pathFor(fmt),
+    filename: `${fileStem}.${fmt}`,
+    available: !hasDot || effectiveFormat === fmt,
+  }))
 
   // Defer the preview so typing stays snappy while images load.
   const previewSrc = React.useDeferredValue(path)
@@ -123,266 +149,306 @@ export function Playground() {
     }
   }
 
-  return (
-    <Card className="w-full max-w-4xl rounded-none border-none!">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">Avatars
-          <div className="flex -space-x-2">
-            {HEADER_AVATARS.map((n) => (
-              <img
-                key={n}
-                src={`/${n}?size=28`}
-                alt={`Avatar for ${n}`}
-                width={28}
-                height={28}
-                className="ring-background rounded-full ring-2"
-              />
-            ))}
-          </div></CardTitle>
-        <CardDescription>
-        Generate beautiful avatars for your application.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-8 md:grid-cols-[1fr_20rem]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <div className="grid gap-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="ellie"
-              autoComplete="off"
-              autoCapitalize="off"
-              spellCheck={false}
-            />
-            {hasDot ? (
-              <p className="text-muted-foreground text-xs">
-                Anything after the first dot acts as a file extension — it
-                decides the format ({effectiveFormat.toUpperCase()} here), and
-                only the part before it picks the colours.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="style">Style</Label>
-            <StyleDropdown
-              id="style"
-              value={style}
-              onValueChange={setStyle}
-              previewName={effectiveName}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="format">Format</Label>
-              <Select
-                value={hasDot ? effectiveFormat : format}
-                onValueChange={(v) => setFormat(v as 'png' | 'svg')}
-                disabled={hasDot}
-              >
-                <SelectTrigger id="format" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="svg">SVG</SelectItem>
-                  <SelectItem value="png">PNG</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="size">Size</Label>
-              <Input
-                id="size"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={MAX_DIMENSION}
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                onBlur={() => setSize(String(sizeNum))}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="ratio">Aspect ratio</Label>
-            <div className="flex gap-2">
-              <Select
-                value={ratioId}
-                onValueChange={(v) => {
-                  if (v === null) return
-                  if (v === CUSTOM_RATIO && preset) {
-                    // Seed the custom fields from the shape already on screen.
-                    setCustomRatio({
-                      w: String(preset.width),
-                      h: String(preset.height),
-                    })
-                  }
-                  setRatioId(v)
-                }}
-              >
-                <SelectTrigger id="ratio" className="min-w-0 flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {RATIO_PRESETS.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      <span className="flex w-full items-baseline gap-2">
-                        {r.label}
-                        <span className="text-muted-foreground text-xs">
-                          {r.hint}
-                        </span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={CUSTOM_RATIO}>Custom…</SelectItem>
-                </SelectContent>
-              </Select>
-              {isCustomRatio ? (
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <Input
-                    aria-label="Custom ratio width"
-                    type="number"
-                    inputMode="decimal"
-                    min={1}
-                    className="w-16"
-                    value={customRatio.w}
-                    onChange={(e) =>
-                      setCustomRatio((r) => ({ ...r, w: e.target.value }))
-                    }
-                  />
-                  <span className="text-muted-foreground text-sm">:</span>
-                  <Input
-                    aria-label="Custom ratio height"
-                    type="number"
-                    inputMode="decimal"
-                    min={1}
-                    className="w-16"
-                    value={customRatio.h}
-                    onChange={(e) =>
-                      setCustomRatio((r) => ({ ...r, h: e.target.value }))
-                    }
-                  />
-                </div>
-              ) : null}
-            </div>
-            <p className="text-muted-foreground text-xs">
-              Size sets the longest edge — {width} × {height} px here.
-            </p>
-          </div>
-
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm leading-none font-medium select-none">
-                Roundness
-              </span>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {roundedClamped === maxRounded && roundedClamped > 0
-                  ? 'circle'
-                  : `${roundedClamped}px`}
-              </span>
-            </div>
-            <Slider
-              value={[roundedClamped]}
-              onValueChange={(v) => setRounded(Array.isArray(v) ? v[0] : v)}
-              max={maxRounded}
-              step={1}
-              aria-label="Roundness"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="icon">Icon</Label>
-            <IconDropdown id="icon" value={icon} onValueChange={setIcon} />
-            <p className="text-muted-foreground text-xs">
-              Any of the 6,000+ free{' '}
-              <a
-                className="hover:text-foreground underline underline-offset-4 transition-colors"
-                href="https://hugeicons.com"
-                target="_blank"
-                rel="noreferrer"
-              >
-                HugeIcons
-              </a>
-              , drawn over the artwork — and it wins when initials are set too.
-            </p>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="text">Initials</Label>
-            <Input
-              id="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="EA"
-              maxLength={4}
-              disabled={!!icon}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <p className="text-muted-foreground text-xs">
-              {icon
-                ? 'An icon is already set — clear it to use initials instead.'
-                : 'Optional — rendered on top of the artwork. PNG sets them in the renderer’s own font, so they won’t match the SVG letter for letter.'}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="bg-muted/30 flex h-64 items-center justify-center overflow-hidden rounded-lg border">
-            <img
-              key={previewSrc}
-              src={previewSrc}
-              alt={`Avatar for ${effectiveName}`}
-              width={displayWidth}
-              height={displayHeight}
-              style={{ width: displayWidth, height: displayHeight }}
-            />
-          </div>
-          <p className="text-muted-foreground text-center text-xs tabular-nums">
-            {width} × {height} px
-            {sizeNum > PREVIEW_MAX ? ' — scaled to fit' : ''}
+  const settings = (
+    <div className="flex min-w-0 flex-col gap-6">
+      <div className="grid gap-2">
+        <Label htmlFor="name">Name</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="ellie"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+        />
+        {hasDot ? (
+          <p className="text-muted-foreground text-xs">
+            Anything after the first dot acts as a file extension — it decides
+            the format ({effectiveFormat.toUpperCase()} here), and only the part
+            before it picks the colours.
           </p>
-          <div className="flex items-center gap-2">
-            <code
-              className="bg-muted text-muted-foreground min-w-0 flex-1 truncate rounded-md px-3 py-2 text-xs"
-              title={url}
-            >
-              {url}
-            </code>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={copyUrl}
-              aria-label="Copy URL"
-            >
-              <HugeiconsIcon
-                icon={copied ? Tick02Icon : Copy01Icon}
-                strokeWidth={2}
-              />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              nativeButton={false}
-              render={
-                <a
-                  href={path}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Open image in a new tab"
-                />
-              }
-            >
-              <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} />
-            </Button>
-          </div>
+        ) : null}
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="style">Style</Label>
+        <StyleDropdown
+          id="style"
+          value={style}
+          onValueChange={setStyle}
+          previewName={effectiveName}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="format">Format</Label>
+          <Select
+            value={hasDot ? effectiveFormat : format}
+            onValueChange={(v) => setFormat(v as 'png' | 'svg')}
+            disabled={hasDot}
+          >
+            <SelectTrigger id="format" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="svg">SVG</SelectItem>
+              <SelectItem value="png">PNG</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </CardContent>
-      {/* <CardFooter className="border-t flex-col items-start gap-3 [.border-t]:pt-6"> 
+        <div className="grid gap-2">
+          <Label htmlFor="size">Size</Label>
+          <Input
+            id="size"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={MAX_DIMENSION}
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+            onBlur={() => setSize(String(sizeNum))}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="ratio">Aspect ratio</Label>
+        <div className="flex gap-2">
+          <Select
+            value={ratioId}
+            onValueChange={(v) => {
+              if (v === null) return
+              if (v === CUSTOM_RATIO && preset) {
+                // Seed the custom fields from the shape already on screen.
+                setCustomRatio({
+                  w: String(preset.width),
+                  h: String(preset.height),
+                })
+              }
+              setRatioId(v)
+            }}
+          >
+            <SelectTrigger id="ratio" className="min-w-0 flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RATIO_PRESETS.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  <span className="flex w-full items-baseline gap-2">
+                    {r.label}
+                    <span className="text-muted-foreground text-xs">
+                      {r.hint}
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+              <SelectItem value={CUSTOM_RATIO}>Custom…</SelectItem>
+            </SelectContent>
+          </Select>
+          {isCustomRatio ? (
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Input
+                aria-label="Custom ratio width"
+                type="number"
+                inputMode="decimal"
+                min={1}
+                className="w-16"
+                value={customRatio.w}
+                onChange={(e) =>
+                  setCustomRatio((r) => ({ ...r, w: e.target.value }))
+                }
+              />
+              <span className="text-muted-foreground text-sm">:</span>
+              <Input
+                aria-label="Custom ratio height"
+                type="number"
+                inputMode="decimal"
+                min={1}
+                className="w-16"
+                value={customRatio.h}
+                onChange={(e) =>
+                  setCustomRatio((r) => ({ ...r, h: e.target.value }))
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Size sets the longest edge — {width} × {height} px here.
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm leading-none font-medium select-none">
+            Roundness
+          </span>
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {roundedClamped === maxRounded && roundedClamped > 0
+              ? 'circle'
+              : `${roundedClamped}px`}
+          </span>
+        </div>
+        <Slider
+          value={[roundedClamped]}
+          onValueChange={(v) => setRounded(Array.isArray(v) ? v[0] : v)}
+          max={maxRounded}
+          step={1}
+          aria-label="Roundness"
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="icon">Icon</Label>
+        <IconDropdown id="icon" value={icon} onValueChange={setIcon} />
+        <p className="text-muted-foreground text-xs">
+          Any of the 6,000+ free{' '}
+          <a
+            className="hover:text-foreground underline underline-offset-4 transition-colors"
+            href="https://hugeicons.com"
+            target="_blank"
+            rel="noreferrer"
+          >
+            HugeIcons
+          </a>
+          , drawn over the artwork — and it wins when initials are set too.
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="text">Initials</Label>
+        <Input
+          id="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="EA"
+          maxLength={4}
+          disabled={!!icon}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <p className="text-muted-foreground text-xs">
+          {icon
+            ? 'An icon is already set — clear it to use initials instead.'
+            : 'Optional — rendered on top of the artwork. PNG sets them in the renderer’s own font, so they won’t match the SVG letter for letter.'}
+        </p>
+      </div>
+    </div>
+  )
+
+  const preview = (
+    <div className="flex min-w-0 flex-col gap-4">
+      <div className="bg-muted/30 flex h-64 items-center justify-center overflow-hidden rounded-lg border">
+        <img
+          key={previewSrc}
+          src={previewSrc}
+          alt={`Avatar for ${effectiveName}`}
+          width={displayWidth}
+          height={displayHeight}
+          // Dragging the handle can make the column narrower than the artwork,
+          // so the box constrains the width and the ratio keeps the shape.
+          style={{
+            width: displayWidth,
+            maxWidth: '100%',
+            height: 'auto',
+            aspectRatio: `${width} / ${height}`,
+          }}
+        />
+      </div>
+      <p className="text-muted-foreground text-center text-xs tabular-nums">
+        {width} × {height} px
+        {sizeNum > PREVIEW_MAX ? ' — scaled to fit' : ''}
+      </p>
+      <div className="flex items-center gap-2">
+        <code
+          className="bg-muted text-muted-foreground min-w-0 flex-1 truncate rounded-md px-3 py-2 text-xs"
+          title={url}
+        >
+          {url}
+        </code>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={copyUrl}
+          aria-label="Copy URL"
+        >
+          <HugeiconsIcon
+            icon={copied ? Tick02Icon : Copy01Icon}
+            strokeWidth={2}
+          />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          nativeButton={false}
+          render={
+            <a
+              href={path}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open image in a new tab"
+            />
+          }
+        >
+          <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} />
+        </Button>
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      {/* The bar is rendered from here, not from the page, because its preset
+          picker writes straight into the `name` state below. */}
+      <Header
+        examples={EXAMPLES}
+        onExampleSelect={setName}
+        shareUrl={url}
+        sharePath={path}
+        downloads={downloads}
+      />
+
+      <Card className="mx-auto w-full rounded-none border-none! py-0!">
+        {/* The title lives in the header now; this is just the tagline. */}
+      {/*  <CardHeader>
+          <CardDescription>
+            Generate beautiful avatars for your application.
+          </CardDescription>
+        </CardHeader> */}
+        {/* Padding moves onto the panels so the drag handle can run the full
+            height of the content. */}
+        <CardContent className="px-0">
+          {isMobile ? (
+            <div className="grid gap-8 px-(--card-spacing)">
+              {settings}
+              {preview}
+            </div>
+          ) : (
+            <ResizablePanelGroup
+              orientation="horizontal"
+              className="min-h-[30rem] items-stretch"
+            >
+              <ResizablePanel
+                defaultSize="64"
+                minSize="40"
+                className="min-w-0 ps-(--card-spacing) pe-(--card-spacing)"
+              >
+                {settings}
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                defaultSize="36"
+                minSize="22"
+                className="min-w-0 ps-(--card-spacing) pe-(--card-spacing)"
+              >
+                {preview}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
+        </CardContent>
+        {/* <CardFooter className="border-t flex-col items-start gap-3 [.border-t]:pt-6">
         <p className="text-muted-foreground text-xs">Try one of these:</p>
         <div className="flex flex-wrap gap-4">
           {EXAMPLES.map((n) => (
@@ -407,6 +473,7 @@ export function Playground() {
           ))}
         </div>
       </CardFooter> */}
-    </Card>
+      </Card>
+    </>
   )
 }

@@ -14,11 +14,10 @@ export default function Home() {
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </Head>
 
-      <main className="flex min-h-screen flex-col items-center p-0">
-
-        <div className=" w-full max-w-4xl">
-          <Playground />
-        </div>
+      {/* The playground brings its own header, which has to reach the full
+          width of the viewport — so no max-width wrapper here. */}
+      <main className="flex min-h-screen w-full flex-col p-0">
+        <Playground />
 
        {/* <footer className="text-muted-foreground mt-12 text-center text-sm">
           <a
