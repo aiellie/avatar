@@ -97,18 +97,42 @@ https://avatar.aiellie.dev/ellie?style=glass&rounded=24
 
 ![Avatar for ellie](https://avatar.aiellie.dev/ellie?style=glass&rounded=24)
 
+Or `style=orb` for a luminous sphere — three seeded colours poured over one
+another and softened together, under a sheen and a shaded rim:
+
+```
+https://avatar.aiellie.dev/ellie?style=orb&rounded=full
+```
+
+![Avatar for ellie](https://avatar.aiellie.dev/ellie?style=orb&rounded=full)
+
 | `style`    | Look                                             |
 | ---------- | ------------------------------------------------ |
 | `gradient` | Two colours blended corner to corner. Default    |
 | `glass`    | Blurred shapes on a flat hue. Also `frosted`     |
+| `orb`      | Soft regions of three colours. Also `sphere`     |
 
 `glass` is a port of [DiceBear](https://www.dicebear.com)'s Glass style: the
 same 35-hue palette, the same eight glyphs (the letters of the word
-"gradient"), and the same seeded selection. It picks its colour on its own
-hash, so a name lands on unrelated hues in the two styles.
+"gradient"), and the same seeded selection.
+
+`orb` comes from the orb playground in
+[aiellie/images](https://github.com/aiellie/images). The *recipe* is ported
+exactly — the same FNV-1a hash, the same PRNG, the same roll order and ranges —
+so a name gets the same palette, the same shape and the same character in both.
+The *drawing* is an interpretation: the playground runs a Warp fragment shader
+per pixel, which is neither an SVG nor cheap enough for this route, so the
+numbers it rolls are spent on a colour ramp and organic blurred regions instead.
+Same seed, same colours and mood; not the same pixels. The playground's six
+named palettes are seeds like any other, so `/anthropic?style=orb` (or
+`openai`, `google`, `x`, `deepseek`, `aiellie`) gives that palette. `rounded=full`
+is what finishes the sphere.
+
+Each style hashes the name on its own, so one name lands on unrelated colours in
+all three.
 
 Anything unrecognised falls back to `gradient`, and icons and initials draw over
-both.
+all of them.
 
 ### SVG
 

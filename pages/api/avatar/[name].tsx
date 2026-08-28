@@ -13,6 +13,11 @@ import {
 } from '../../../utils/glass'
 import { generateGradient } from '../../../utils/gradient'
 import { loadIcon } from '../../../utils/hugeicons-server'
+import {
+  ORB_VIEWPORT,
+  type OrbArtwork,
+  generateOrb,
+} from '../../../utils/orb'
 import { parseStyle } from '../../../utils/styles'
 
 export const runtime = 'edge'
@@ -134,6 +139,117 @@ function glassShape({ path, offsetX, offsetY, rotation }: GlassShape) {
   )
 }
 
+/**
+ * The orb style: the seed's three colours ramped across the box, organic
+ * regions of them poured over it, a sheen at the light end and a shaded rim —
+ * a still of the orb the `aiellie/images` playground animates for the same
+ * name.
+ *
+ * Laid out in a 100-unit viewport and scaled to cover the box, like glass, so
+ * a banner is a wider crop of one orb rather than a stretched one. All of it
+ * is clipped to the box, which is why the one blur below is cropped to the
+ * viewport rather than to the shapes: sizing the region to the shapes leaves
+ * resvg filtering several times the visible surface at 2048px.
+ */
+function orbBackground(art: OrbArtwork, { width, height, rounded }: Box) {
+  const scale = Math.max(width, height) / ORB_VIEWPORT
+  const span = ORB_VIEWPORT * scale
+  const radians = (art.ramp.angle * Math.PI) / 180
+  // Half a unit vector each way: the ramp crosses the box along `angle`.
+  const dx = Math.cos(radians) / 2
+  const dy = Math.sin(radians) / 2
+
+  return (
+    <g>
+      <defs>
+        <linearGradient
+          id="orb-ramp"
+          x1={0.5 - dx}
+          y1={0.5 - dy}
+          x2={0.5 + dx}
+          y2={0.5 + dy}
+        >
+          <stop offset="0%" stopColor={art.ramp.from} />
+          <stop
+            offset={`${(art.ramp.midpoint * 100).toFixed(1)}%`}
+            stopColor={art.ramp.mid}
+          />
+          <stop offset="100%" stopColor={art.ramp.to} />
+        </linearGradient>
+        {/* Both of these ride the element they fill: the sheen lands inside its
+            own circle, and the rim follows whatever shape the box is. */}
+        <radialGradient id="orb-sheen">
+          <stop
+            offset="0%"
+            stopColor="#fff"
+            stopOpacity={art.highlight.opacity}
+          />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="orb-shade">
+          <stop offset="55%" stopColor="#000" stopOpacity="0" />
+          <stop offset="100%" stopColor="#000" stopOpacity={art.shade} />
+        </radialGradient>
+        <filter
+          id="orb-soften"
+          x={-25}
+          y={-25}
+          width={150}
+          height={150}
+          filterUnits="userSpaceOnUse"
+          colorInterpolationFilters="sRGB"
+        >
+          <feGaussianBlur stdDeviation={art.blur} />
+        </filter>
+        <clipPath id="orb-clip">
+          <rect
+            x="0"
+            y="0"
+            width={width}
+            height={height}
+            rx={rounded}
+            ry={rounded}
+          />
+        </clipPath>
+      </defs>
+      <g clipPath="url(#orb-clip)">
+        <rect
+          fill="url(#orb-ramp)"
+          x="0"
+          y="0"
+          width={width}
+          height={height}
+        />
+        <g
+          transform={`translate(${(width - span) / 2} ${(height - span) / 2}) scale(${scale})`}
+        >
+          <g filter="url(#orb-soften)">
+            {art.layers.map((layer, index) => (
+              <path key={index} d={layer.path} fill={layer.color} />
+            ))}
+          </g>
+          <circle
+            cx={art.highlight.x}
+            cy={art.highlight.y}
+            r={art.highlight.r}
+            fill="url(#orb-sheen)"
+            style={{ mixBlendMode: 'screen' }}
+          />
+        </g>
+        {/* The rim last, over the artwork, so the whole thing sits in a ball
+            rather than each layer being shaded on its own. */}
+        <rect
+          fill="url(#orb-shade)"
+          x="0"
+          y="0"
+          width={width}
+          height={height}
+        />
+      </g>
+    </g>
+  )
+}
+
 export default async function handler(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
   const name = searchParams.get('name')
@@ -154,9 +270,11 @@ export default async function handler(req: NextRequest) {
   const style = parseStyle(searchParams.get('style'))
   const box = { width, height, rounded }
   const background =
-    style === 'glass'
-      ? glassBackground(generateGlass(seed), box)
-      : gradientBackground(await generateGradient(seed), box)
+    style === 'orb'
+      ? orbBackground(generateOrb(seed), box)
+      : style === 'glass'
+        ? glassBackground(generateGlass(seed), box)
+        : gradientBackground(await generateGradient(seed), box)
   const icon = await loadIcon(req.nextUrl.origin, searchParams.get('icon'))
 
   // An icon wins when both are set.
