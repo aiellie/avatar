@@ -2,6 +2,12 @@ import { ImageResponse } from 'next/og'
 import type { NextRequest } from 'next/server'
 import { renderToReadableStream } from 'react-dom/server'
 import { iconGlyph } from '../../../components/hugeicon'
+import {
+  CRITTER_VIEWPORT,
+  type CritterArtwork,
+  type CritterLayer,
+  generateCritter,
+} from '../../../utils/critters'
 import { parseRounded, resolveDimensions } from '../../../utils/dimensions'
 import {
   GLASS_BLUR,
@@ -134,6 +140,94 @@ function glassShape({ path, offsetX, offsetY, rotation }: GlassShape) {
   )
 }
 
+/**
+ * The critters style: a seeded creature on a pastel backdrop.
+ *
+ * Contained rather than covered, and sat on the bottom edge: a banner gets
+ * more backdrop either side of the same critter, never a critter cropped at
+ * the eyes.
+ */
+function critterBackground(art: CritterArtwork, { width, height, rounded }: Box) {
+  const scale = Math.min(width, height) / CRITTER_VIEWPORT
+  const span = CRITTER_VIEWPORT * scale
+
+  return (
+    <g>
+      <defs>
+        <clipPath id="critter-clip">
+          <rect
+            x="0"
+            y="0"
+            width={width}
+            height={height}
+            rx={rounded}
+            ry={rounded}
+          />
+        </clipPath>
+      </defs>
+      {/* The body runs off the bottom edge, so it is clipped with the rest. */}
+      <g clipPath="url(#critter-clip)">
+        <rect
+          fill={art.background}
+          x="0"
+          y="0"
+          width={width}
+          height={height}
+        />
+        <g
+          transform={`translate(${(width - span) / 2} ${height - span}) scale(${scale})`}
+        >
+          {art.layers.map(critterLayer)}
+        </g>
+      </g>
+    </g>
+  )
+}
+
+function critterLayer(layer: CritterLayer, key: number) {
+  switch (layer.kind) {
+    case 'path':
+      return (
+        <path
+          key={key}
+          d={layer.d}
+          fill={layer.fill ?? 'none'}
+          stroke={layer.stroke}
+          strokeWidth={layer.strokeWidth}
+          strokeLinecap={layer.stroke ? 'round' : undefined}
+          strokeLinejoin={layer.stroke ? 'round' : undefined}
+          opacity={layer.opacity}
+        />
+      )
+    case 'circle':
+      return (
+        <circle
+          key={key}
+          cx={layer.cx}
+          cy={layer.cy}
+          r={layer.r}
+          fill={layer.fill}
+          opacity={layer.opacity}
+        />
+      )
+    case 'ellipse':
+      return (
+        <ellipse
+          key={key}
+          cx={layer.cx}
+          cy={layer.cy}
+          rx={layer.rx}
+          ry={layer.ry}
+          fill={layer.fill}
+          opacity={layer.opacity}
+          // Always a transform, even a no-op one: Satori silently drops an
+          // ellipse from the PNG without one.
+          transform={`rotate(${layer.rotate ?? 0} ${layer.cx} ${layer.cy})`}
+        />
+      )
+  }
+}
+
 export default async function handler(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
   const name = searchParams.get('name')
@@ -156,7 +250,9 @@ export default async function handler(req: NextRequest) {
   const background =
     style === 'glass'
       ? glassBackground(generateGlass(seed), box)
-      : gradientBackground(await generateGradient(seed), box)
+      : style === 'critters'
+        ? critterBackground(generateCritter(seed), box)
+        : gradientBackground(await generateGradient(seed), box)
   const icon = await loadIcon(req.nextUrl.origin, searchParams.get('icon'))
 
   // An icon wins when both are set.

@@ -88,7 +88,7 @@ const SHAPE2: Record<Shape, string> = {
  * not land a given name on the same hue — they are separate looks, not two
  * renderings of one palette.
  */
-function makePrng(seed: string) {
+export function makePrng(seed: string) {
   let h = 1779033703 ^ seed.length
   for (let i = 0; i < seed.length; i++) {
     h = Math.imul(h ^ seed.charCodeAt(i), 3432918353)

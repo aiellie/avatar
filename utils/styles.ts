@@ -1,4 +1,4 @@
-export type AvatarStyle = 'gradient' | 'glass'
+export type AvatarStyle = 'gradient' | 'glass' | 'critters'
 
 export type StylePreset = {
   id: AvatarStyle
@@ -21,6 +21,12 @@ export const STYLE_PRESETS: StylePreset[] = [
     label: 'Glass',
     hint: 'Frosted, blurred',
     aliases: ['glassmorphism', 'frosted'],
+  },
+  {
+    id: 'critters',
+    label: 'Critters',
+    hint: 'Little creatures',
+    aliases: ['critter', 'creature', 'creatures', 'monster', 'monsters'],
   },
 ]
 

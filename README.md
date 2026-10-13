@@ -101,14 +101,27 @@ https://avatar.aiellie.dev/ellie?style=glass&rounded=24
 | ---------- | ------------------------------------------------ |
 | `gradient` | Two colours blended corner to corner. Default    |
 | `glass`    | Blurred shapes on a flat hue. Also `frosted`     |
+| `critters` | A little creature on a pastel backdrop. Also `critter`, `monster` |
 
 `glass` is a port of [DiceBear](https://www.dicebear.com)'s Glass style: the
 same 35-hue palette, the same eight glyphs (the letters of the word
 "gradient"), and the same seeded selection. It picks its colour on its own
 hash, so a name lands on unrelated hues in the two styles.
 
+`critters` hatches a character for every name instead: a body (blob, bun, bean
+or toad), something on its head (cat or bunny ears, bear ears, antennae, horns,
+a sprout, or nothing), eyes, a mouth, and sometimes blushing cheeks or a belly
+patch. The critter sits on the bottom edge and keeps its proportions at any
+ratio, so a banner gets more backdrop rather than a cropped face:
+
+```
+https://avatar.aiellie.dev/ellie?style=critters&rounded=full
+```
+
+![Avatar for ellie](https://avatar.aiellie.dev/ellie?style=critters&rounded=full)
+
 Anything unrecognised falls back to `gradient`, and icons and initials draw over
-both.
+every style.
 
 ### SVG
 
